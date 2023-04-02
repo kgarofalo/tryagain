@@ -57,56 +57,44 @@ function chatStripe(isAi, value, uniqueId) {
 }
 
 const handleSubmit = async (e) => {
-    e.preventDefault()
+  e.preventDefault();
 
-    const data = new FormData(form)
+  const data = new FormData(form);
+  const input = data.get('prompt');
 
-    // user's chatstripe
-    chatContainer.innerHTML += chatStripe(false, data.get('prompt'))
+  chatContainer.innerHTML += chatStripe(false, input);
+  form.reset();
 
-    // to clear the textarea input 
-    form.reset()
+  chatContainer.scrollTop = chatContainer.scrollHeight;
 
-    // bot's chatstripe
-    const uniqueId = generateUniqueId()
-    chatContainer.innerHTML += chatStripe(true, " ", uniqueId)
+  const uniqueId = generateUniqueId();
+  chatContainer.innerHTML += chatStripe(true, '', uniqueId);
+  const messageDiv = document.getElementById(uniqueId);
+  loader(messageDiv);
 
-    // to focus scroll to the bottom 
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+  try {
+    const possibleOutcomes = await generatePossibleOutcomes(input, 3);
+    displayOutcomes(possibleOutcomes);
+    const choice = parseInt(await getUserChoice(possibleOutcomes.length));
+    executeOutcome(possibleOutcomes[choice - 1]);
+    await learnFromOutcomes(input, possibleOutcomes, choice - 1);
+  } catch (err) {
+    console.error(err);
+    messageDiv.innerHTML = 'Something went wrong';
+    alert(err);
+  } finally {
+    clearInterval(loadInterval);
+    messageDiv.innerHTML = '';
+    const newInput = document.createElement('textarea');
+    newInput.setAttribute('id', 'prompt');
+    newInput.setAttribute('placeholder', 'Enter your message here');
+    newInput.setAttribute('name', 'prompt');
+    newInput.setAttribute('rows', '1');
+    form.appendChild(newInput);
+    newInput.focus();
+  }
+};
 
-    // specific message div 
-    const messageDiv = document.getElementById(uniqueId)
-
-    // messageDiv.innerHTML = "..."
-    loader(messageDiv)
-
-    try {
-        // Step 1: Get user input
-        const prompt = data.get('prompt')
-
-        // Step 2: Generate possible outcomes
-        const possibleOutcomes = await generatePossibleOutcomes(prompt, 3)
-
-        // Step 3: Display the outcomes to the user
-        displayOutcomes(possibleOutcomes)
-
-        // Step 4: Get the user's choice
-        const choice = parseInt(await getUserChoice(possibleOutcomes.length))
-
-        // Step 5: Execute the chosen outcome
-        executeOutcome(possibleOutcomes[choice - 1])
-
-        // Step 6: Learn from the user's choice
-        await learnFromOutcomes(prompt, possibleOutcomes, choice - 1)
-    } catch (err) {
-        console.error(err)
-        messageDiv.innerHTML = "Something went wrong"
-        alert(err)
-    } finally {
-        clearInterval(loadInterval)
-        messageDiv.innerHTML = " "
-    }
-}
 
 // API functions
 async function generatePossibleOutcomes(prompt, numOutcomes) {
