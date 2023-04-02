@@ -117,7 +117,8 @@ async function generatePossibleOutcomes(prompt, numOutcomes) {
     throw new Error(`Failed to generate possible outcomes: ${response.status} ${response.statusText}`)
   }
 
-  const data = await response.json()
+  const data = await response.json();
+  console.log(data);
   const completions = data.choices[0].text.trim().split('\n')
 
   return completions
