@@ -1,67 +1,112 @@
-import bot from './assets/bot.svg'
-import user from './assets/user.svg'
+// Import assets
+import bot from './assets/bot.svg';
+import user from './assets/user.svg';
 
-const form = document.querySelector('form')
-const chatContainer = document.querySelector('#chat_container')
+const form = document.querySelector('form');
+const chatContainer = document.querySelector('#chat_container');
 
-let loadInterval
-
+// Helper functions
 function loader(element) {
-    element.textContent = ''
+  element.textContent = '';
 
-    loadInterval = setInterval(() => {
-        // Update the text content of the loading indicator
-        element.textContent += '.';
+  setInterval(() => {
+    element.textContent += '.';
 
-        // If the loading indicator has reached three dots, reset it
-        if (element.textContent === '....') {
-            element.textContent = '';
-        }
-    }, 300);
+    if (element.textContent === '....') {
+      element.textContent = '';
+    }
+  }, 300);
 }
 
 function typeText(element, text) {
-    let index = 0
+  let index = 0;
 
-    let interval = setInterval(() => {
-        if (index < text.length) {
-            element.innerHTML += text.charAt(index)
-            index++
-        } else {
-            clearInterval(interval)
-        }
-    }, 20)
+  setInterval(() => {
+    if (index < text.length) {
+      element.innerHTML += text.charAt(index);
+      index++;
+    } else {
+      clearInterval(interval);
+    }
+  }, 20);
 }
 
-// generate unique ID for each message div of bot
-// necessary for typing text effect for that specific reply
-// without unique ID, typing text will work on every element
-function generateUniqueId() {
-    const timestamp = Date.now();
-    const randomNumber = Math.random();
-    const hexadecimalString = randomNumber.toString(16);
 
-    return `id-${timestamp}-${hexadecimalString}`;
+function generateUniqueId() {
+  const timestamp = Date.now();
+  const randomNumber = Math.random();
+  const hexadecimalString = randomNumber.toString(16);
+
+  return `id-${timestamp}-${hexadecimalString}`;
 }
 
 function chatStripe(isAi, value, uniqueId) {
-    return (
-        `
-        <div class="wrapper ${isAi && 'ai'}">
-            <div class="chat">
-                <div class="profile">
-                    <img 
-                      src=${isAi ? bot : user} 
-                      alt="${isAi ? 'bot' : 'user'}" 
-                    />
-                </div>
-                <div class="message" id=${uniqueId}>${value}</div>
+  return `
+    <div class="wrapper ${isAi ? 'ai' : ''}">
+        <div class="chat">
+            <div class="profile">
+                <img 
+                  src=${isAi ? bot : user} 
+                  alt="${isAi ? 'bot' : 'user'}" 
+                />
             </div>
+            <div class="message" id=${uniqueId}>${value}</div>
         </div>
-    `
-    )
+    </div>
+  `;
 }
 
+const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    const data = new FormData(form)
+
+    // user's chatstripe
+    chatContainer.innerHTML += chatStripe(false, data.get('prompt'))
+
+    // to clear the textarea input 
+    form.reset()
+
+    // bot's chatstripe
+    const uniqueId = generateUniqueId()
+    chatContainer.innerHTML += chatStripe(true, " ", uniqueId)
+
+    // to focus scroll to the bottom 
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    // specific message div 
+    const messageDiv = document.getElementById(uniqueId)
+
+    // messageDiv.innerHTML = "..."
+    loader(messageDiv)
+
+    try {
+        // Step 1: Get user input
+        const prompt = data.get('prompt')
+
+        // Step 2: Generate possible outcomes
+        const possibleOutcomes = await generatePossibleOutcomes(prompt, 3)
+
+        // Step 3: Display the outcomes to the user
+        displayOutcomes(possibleOutcomes)
+
+        // Step 4: Get the user's choice
+        const choice = parseInt(await getUserChoice(possibleOutcomes.length))
+
+        // Step 5: Execute the chosen outcome
+        executeOutcome(possibleOutcomes[choice - 1])
+
+        // Step 6: Learn from the user's choice
+        await learnFromOutcomes(prompt, possibleOutcomes, choice - 1)
+    } catch (err) {
+        console.error(err)
+        messageDiv.innerHTML = "Something went wrong"
+        alert(err)
+    } finally {
+        clearInterval(loadInterval)
+        messageDiv.innerHTML = " "
+    }
+}
 
 // API functions
 async function generatePossibleOutcomes(prompt, numOutcomes) {
@@ -183,6 +228,10 @@ async function allowFreeWill() {
 // Event listeners
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
+  const userMessage = document.getElementById('prompt').value;
+  chatContainer.innerHTML += chatStripe(false, userMessage);
+  document.getElementById('prompt').value = '';
+
   await allowFreeWill();
   // Scroll to the bottom of the chat container
   chatContainer.scrollTop = chatContainer.scrollHeight;
