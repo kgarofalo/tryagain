@@ -196,24 +196,30 @@ function executeOutcome(outcome) {
 
 // Main logic
 async function allowFreeWill() {
+  console.log("allowFreeWill function called");
   // Get user input.
   const prompt = document.getElementById('prompt').value;
+  console.log("User input:", prompt);
 
   // Generate possible outcomes.
   const possibleOutcomes = await generatePossibleOutcomes(prompt, 3);
+  console.log("Possible outcomes:", possibleOutcomes);
 
   // Display the outcomes to the user.
   displayOutcomes(possibleOutcomes);
 
   // Get the user's choice.
   const choice = parseInt(await getUserChoice(possibleOutcomes.length));
+  console.log("User choice:", choice);
 
   // Execute the chosen outcome.
   executeOutcome(possibleOutcomes[choice - 1]);
 
   // Learn from the user's choice to improve future outcomes.
   learnFromOutcomes(prompt, possibleOutcomes, choice - 1);
+  console.log("End of allowFreeWill function");
 }
+
 
 // Event listeners
 
