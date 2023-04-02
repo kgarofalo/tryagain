@@ -62,59 +62,128 @@ function chatStripe(isAi, value, uniqueId) {
     )
 }
 
-const handleSubmit = async (e) => {
-    e.preventDefault()
 
-    const data = new FormData(form)
-
-    // user's chatstripe
-    chatContainer.innerHTML += chatStripe(false, data.get('prompt'))
-
-    // to clear the textarea input 
-    form.reset()
-
-    // bot's chatstripe
-    const uniqueId = generateUniqueId()
-    chatContainer.innerHTML += chatStripe(true, " ", uniqueId)
-
-    // to focus scroll to the bottom 
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-
-    // specific message div 
-    const messageDiv = document.getElementById(uniqueId)
-
-    // messageDiv.innerHTML = "..."
-    loader(messageDiv)
-
-    const response = await fetch('https://chatgptkevin.onrender.com', {
+// API functions
+async function generatePossibleOutcomes(prompt, numOutcomes) {
+   const response = await fetch('https://chatgptkevin.onrender.com/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            prompt: data.get('prompt')
-        })
+      'prompt': prompt,
+      'max_tokens': 20,
+      'n': numOutcomes,
+      'stop': '\n',
+      'temperature': 0.7
     })
+  })
 
-    clearInterval(loadInterval)
-    messageDiv.innerHTML = " "
+  if (!response.ok) {
+    throw new Error(`Failed to generate possible outcomes: ${response.status} ${response.statusText}`)
+  }
 
-    if (response.ok) {
-        const data = await response.json();
-        const parsedData = data.bot.trim() // trims any trailing spaces/'\n' 
+  const data = await response.json()
+  const completions = data.choices[0].text.trim().split('\n')
 
-        typeText(messageDiv, parsedData)
-    } else {
-        const err = await response.text()
-
-        messageDiv.innerHTML = "Something went wrong"
-        alert(err)
-    }
+  return completions
 }
 
-form.addEventListener('submit', handleSubmit)
-form.addEventListener('keyup', (e) => {
-    if (e.keyCode === 13) {
-        handleSubmit(e)
-    }
-})
+async function storeUpdatedOutcomes(prompt, outcomes) {
+   const response = await fetch('https://chatgptkevin.onrender.com/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+      'prompt': `Possible outcomes for the prompt "${prompt}"\n- ${outcomes.join('\n- ')}\n\n`,
+      'temperature': 0,
+      'max_tokens': 0,
+      'n': 1,
+      'stop': '\n'
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to store updated outcomes: ${response.status} ${response.statusText}`);
+  }
+
+  console.log('Stored updated outcomes...');
+}
+
+// Learning functions
+async function learnFromOutcomes(prompt, outcomes, chosenOutcome) {
+  // Update the list of possible outcomes based on the user's choice.
+  outcomes[chosenOutcome] = `${outcomes[chosenOutcome]} (chosen)`;
+
+  // Store the updated list of possible outcomes.
+  await storeUpdatedOutcomes(prompt, outcomes);
+}
+
+
+
+async function getUserChoice(max) {
+  return new Promise(resolve => {
+    const handleUserInput = (e) => {
+      e.preventDefault();
+      const choice = e.target.querySelector('input').value;
+      const parsedChoice = parseInt(choice);
+
+      if (parsedChoice > 0 && parsedChoice <= max) {
+        form.removeEventListener('submit', handleUserInput);
+        resolve(choice);
+      }
+    };
+    form.addEventListener('submit', handleUserInput);
+  });
+}
+
+function displayOutcomes(outcomes) {
+  const chatStripeId = generateUniqueId();
+  chatContainer.innerHTML += chatStripe(true, 'Choose one of the following outcomes:', chatStripeId);
+  for (let i = 0; i < outcomes.length; i++) {
+    chatContainer.innerHTML += chatStripe(true, `${i + 1}. ${outcomes[i]}`);
+  }
+}
+
+function executeOutcome(outcome) {
+  const botChatStripeId = generateUniqueId();
+  chatContainer.innerHTML += chatStripe(true, 'Executing outcome...', botChatStripeId);
+  const botMessageDiv = document.getElementById(botChatStripeId);
+  loader(botMessageDiv);
+
+  setTimeout(() => {
+    clearInterval(loadInterval);
+    botMessageDiv.innerHTML = '';
+    typeText(botMessageDiv, outcome);
+  }, 2000);
+}
+
+// Main logic
+async function allowFreeWill() {
+  // Get user input.
+  const prompt = document.getElementById('prompt').value;
+
+  // Generate possible outcomes.
+  const possibleOutcomes = await generatePossibleOutcomes(prompt, 3);
+
+  // Display the outcomes to the user.
+  displayOutcomes(possibleOutcomes);
+
+  // Get the user's choice.
+  const choice = parseInt(await getUserChoice(possibleOutcomes.length));
+
+  // Execute the chosen outcome.
+  executeOutcome(possibleOutcomes[choice - 1]);
+
+  // Learn from the user's choice to improve future outcomes.
+  learnFromOutcomes(prompt, possibleOutcomes, choice - 1);
+}
+
+// Event listeners
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  await allowFreeWill();
+  // Scroll to the bottom of the chat container
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+});
