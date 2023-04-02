@@ -223,8 +223,8 @@ async function allowFreeWill() {
 
 // Event listeners
 
-
 form.addEventListener('submit', async (e) => {
+  console.log('Submit button clicked');
   e.preventDefault();
   const userMessage = document.getElementById('prompt').value;
   chatContainer.innerHTML += chatStripe(false, userMessage);
