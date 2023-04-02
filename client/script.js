@@ -214,6 +214,18 @@ async function allowFreeWill() {
 }
 
 // Event listeners
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  console.log('Submit button clicked');
+  const userMessage = document.getElementById('prompt').value;
+  chatContainer.innerHTML += chatStripe(false, userMessage);
+  document.getElementById('prompt').value = '';
+
+  await allowFreeWill();
+  // Scroll to the bottom of the chat container
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+});
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const userMessage = document.getElementById('prompt').value;
